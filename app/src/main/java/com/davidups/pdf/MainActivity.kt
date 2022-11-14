@@ -22,7 +22,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun showPDF() {
         val url = "https://icseindia.org/document/sample.pdf"
-        binding.pdf.initStatusListener(getPdfStatusListener())
+//        binding.pdf.initStatusListener(getPdfStatusListener())
         binding.pdf.initializePDFDownloader(url, getPdfStatusListener())
     }
 
