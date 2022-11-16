@@ -26,10 +26,10 @@ class PdfCore(private val context: Context, pdfFile: File) : CoroutineScope by P
         openPdfFile(pdfFile)
     }
 
-    fun clear() = try {
+    fun clear() = runCatching {
         pdfRenderer?.close()
-    } catch (e: Exception) {
-        e.printStackTrace()
+    }.getOrElse {
+        it.printStackTrace()
     }
 
     fun getPDFPagePage() = pdfRenderer?.pageCount ?: 0
@@ -43,11 +43,9 @@ class PdfCore(private val context: Context, pdfFile: File) : CoroutineScope by P
         val loadPath = File(File(context.cacheDir, cachePath), page.toString())
         if (!loadPath.exists()) return null
 
-        return try {
+        return runCatching {
             BitmapFactory.decodeFile(loadPath.absolutePath)
-        } catch (e: Exception) {
-            null
-        }
+        }.getOrNull()
     }
 
     private fun writeBitmapToCache(pagePosition: Int, bitmap: Bitmap) {
@@ -86,7 +84,7 @@ class PdfCore(private val context: Context, pdfFile: File) : CoroutineScope by P
             return@launch
         }
         withContext(Dispatchers.IO) {
-            try {
+            runCatching {
                 pdfRenderer?.let {
                     val page = it.openPage(no)
                     with(page) {
@@ -99,7 +97,7 @@ class PdfCore(private val context: Context, pdfFile: File) : CoroutineScope by P
                         onBitmap(bitmap)
                     }
                 }
-            } catch (e: Exception) {
+            }.getOrElse {
                 cancel()
             }
         }

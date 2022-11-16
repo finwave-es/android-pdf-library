@@ -4,6 +4,8 @@ plugins {
     id 'maven-publish'
 }
 
+apply  from: "$project.rootDir/spotless.gradle"
+
 android {
     namespace 'com.talentomobile.pdf'
     compileSdk 32
@@ -39,7 +41,7 @@ publishing {
         release(MavenPublication) {
             groupId = 'com.talentomobile.pdf'
             artifactId = 'pdf'
-            version = '0.0.0'
+            version = '0.0.1'
 
             afterEvaluate {
                 from components.release

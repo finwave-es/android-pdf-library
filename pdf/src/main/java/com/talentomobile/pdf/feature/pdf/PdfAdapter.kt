@@ -36,5 +36,4 @@ class PdfAdapter(private val core: PdfCore, private val isAnimation: Boolean) :
             }
         }
     }
-
 }

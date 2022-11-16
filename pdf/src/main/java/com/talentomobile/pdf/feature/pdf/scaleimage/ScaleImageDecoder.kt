@@ -56,10 +56,9 @@ class ScaleImageDecoder(bitmapConfig: Bitmap.Config?) : ImageDecoder {
                     val resName = segments[1]
                     id = res.getIdentifier(resName, "drawable", packageName)
                 } else if (size == 1 && TextUtils.isDigitsOnly(segments[0])) {
-                    try {
+                    runCatching {
                         id = segments[0].toInt()
-                    } catch (ignored: NumberFormatException) {
-                    }
+                    }.getOrNull()
                 }
                 bitmap = BitmapFactory.decodeResource(context.resources, id, options)
             } else {
@@ -78,10 +77,9 @@ class ScaleImageDecoder(bitmapConfig: Bitmap.Config?) : ImageDecoder {
                 bitmap = BitmapFactory.decodeStream(inputStream, null, options)!!
             } finally {
                 if (inputStream != null) {
-                    try {
+                    runCatching {
                         inputStream.close()
-                    } catch (e: Exception) { /* Ignore */
-                    }
+                    }.getOrNull()
                 }
             }
         }
