@@ -67,10 +67,9 @@ class ScaleRegionDecoder(bitmapConfig: Bitmap.Config?) : ImageRegionDecoder {
                 val resName = segments[1]
                 id = res?.getIdentifier(resName, "drawable", packageName) ?: 0
             } else if (size == 1 && TextUtils.isDigitsOnly(segments[0])) {
-                try {
+                runCatching {
                     id = segments[0].toInt()
-                } catch (ignored: NumberFormatException) {
-                }
+                }.getOrNull()
             }
             decoder = BitmapRegionDecoder.newInstance(context.resources.openRawResource(id), false)
         } else if (uriString.startsWith(ASSET_PREFIX) && context != null) {
@@ -87,19 +86,19 @@ class ScaleRegionDecoder(bitmapConfig: Bitmap.Config?) : ImageRegionDecoder {
                 BitmapRegionDecoder.newInstance(uriString.substring(FILE_PREFIX.length), false)
         } else {
             var inputStream: InputStream? = null
-            try {
+            runCatching {
                 val contentResolver = context?.contentResolver
                 inputStream = contentResolver?.openInputStream(uri)
                 if (inputStream == null) {
                     throw Exception("Content resolver returned null stream. Unable to initialise with uri.")
+                } else {
+                    decoder = BitmapRegionDecoder.newInstance(inputStream!!, false)
                 }
-                decoder = BitmapRegionDecoder.newInstance(inputStream, false)
-            } finally {
+            }.map {
                 if (inputStream != null) {
-                    try {
-                        inputStream.close()
-                    } catch (e: Exception) { /* Ignore */
-                    }
+                    runCatching {
+                        inputStream!!.close()
+                    }.getOrNull()
                 }
             }
         }
@@ -145,7 +144,7 @@ class ScaleRegionDecoder(bitmapConfig: Bitmap.Config?) : ImageRegionDecoder {
      * use the write lock to enforce single threaded decoding.
      */
     private val decodeLock: Lock
-        private get() = decoderLock.readLock()
+        get() = decoderLock.readLock()
 
     companion object {
         private const val FILE_PREFIX = "file://"

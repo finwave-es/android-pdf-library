@@ -4,7 +4,6 @@ import android.graphics.Bitmap
 import android.graphics.Rect
 import android.net.Uri
 import java.io.File
-import java.io.UnsupportedEncodingException
 import java.net.URLDecoder
 
 class ImageSource {
@@ -39,11 +38,9 @@ class ImageSource {
         if (uriString.startsWith(FILE_SCHEME)) {
             val uriFile = File(uriString.substring(FILE_SCHEME.length - 1))
             if (!uriFile.exists()) {
-                try {
+                runCatching {
                     uri = Uri.parse(URLDecoder.decode(uriString, "UTF-8"))
-                } catch (e: UnsupportedEncodingException) {
-                    // Fallback to encoded URI. This exception is not expected.
-                }
+                }.getOrNull()
             }
         }
         bitmap = null

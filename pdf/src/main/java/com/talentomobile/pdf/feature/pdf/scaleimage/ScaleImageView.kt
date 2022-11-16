@@ -507,12 +507,12 @@ class ScaleImageView(context: Context? = null, attr: AttributeSet? = null) : Vie
         if (newImage) {
             uri = null
             decoderLock.writeLock().lock()
-            try {
+            runCatching {
                 if (decoder != null) {
                     decoder!!.recycle()
                     decoder = null
                 }
-            } finally {
+            }.map {
                 decoderLock.writeLock().unlock()
             }
             if (bitmap != null && !bitmapIsCached) {
@@ -557,11 +557,15 @@ class ScaleImageView(context: Context? = null, attr: AttributeSet? = null) : Vie
                     velocityX: Float,
                     velocityY: Float
                 ): Boolean {
-                    if (panEnabled && isReady && vTranslate != null && (abs(e1.x - e2.x) > 50 || abs(e1.y - e2.y) > 50) && (
-                        abs(
-                                velocityX
-                            ) > 500 || abs(velocityY) > 500
-                        ) && !isZooming
+                    if (panEnabled && isReady && vTranslate != null && (
+                        abs(e1.x - e2.x) > 50 || abs(
+                                e1.y - e2.y
+                            ) > 50
+                        ) && (
+                            abs(
+                                    velocityX
+                                ) > 500 || abs(velocityY) > 500
+                            ) && !isZooming
                     ) {
                         val vTranslateEnd = PointF(
                             vTranslate!!.x + velocityX * 0.25f,
@@ -599,7 +603,8 @@ class ScaleImageView(context: Context? = null, attr: AttributeSet? = null) : Vie
                             quickScaleLastDistance = -1f
                             quickScaleSCenter = viewToSourceCoord(vCenterStart!!)
                             quickScaleVStart = PointF(e.x, e.y)
-                            quickScaleVLastPoint = PointF(quickScaleSCenter!!.x, quickScaleSCenter!!.y)
+                            quickScaleVLastPoint =
+                                PointF(quickScaleSCenter!!.x, quickScaleSCenter!!.y)
                             quickScaleMoved = false
                             // We need to get events in onTouchEvent after this.
                             false
@@ -675,10 +680,10 @@ class ScaleImageView(context: Context? = null, attr: AttributeSet? = null) : Vie
             return true
         } else {
             if (anim != null && anim!!.listener != null) {
-                try {
+                runCatching {
                     anim!!.listener!!.onInterruptedByUser()
-                } catch (e: Exception) {
-                    Log.w(TAG, "Error thrown by animation listener", e)
+                }.getOrElse {
+                    Log.w(TAG, "Error thrown by animation listener", it.cause)
                 }
             }
             null
@@ -1054,10 +1059,10 @@ class ScaleImageView(context: Context? = null, attr: AttributeSet? = null) : Vie
             refreshRequiredTiles(finished)
             if (finished) {
                 if (anim!!.listener != null) {
-                    try {
+                    runCatching {
                         anim!!.listener!!.onComplete()
-                    } catch (e: Exception) {
-                        Log.w(TAG, "Error thrown by animation listener", e)
+                    }.getOrElse {
+                        Log.w(TAG, "Error thrown by animation listener", it.cause)
                     }
                 }
                 anim = null
@@ -1730,7 +1735,7 @@ class ScaleImageView(context: Context? = null, attr: AttributeSet? = null) : Vie
         }
 
         override fun doInBackground(vararg params: Void?): IntArray? {
-            try {
+            runCatching {
                 val sourceUri = source.toString()
                 val context = contextRef.get()
                 val decoderFactory = decoderFactoryRef.get()
@@ -1752,9 +1757,9 @@ class ScaleImageView(context: Context? = null, attr: AttributeSet? = null) : Vie
                     }
                     return intArrayOf(sWidth, sHeight, exifOrientation)
                 }
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to initialise bitmap decoder", e)
-                exception = e
+            }.getOrElse {
+                Log.e(TAG, "Failed to initialise bitmap decoder", it.cause)
+                exception = java.lang.Exception(it)
             }
             return null
         }
@@ -1831,7 +1836,7 @@ class ScaleImageView(context: Context? = null, attr: AttributeSet? = null) : Vie
         }
 
         override fun doInBackground(vararg params: Void?): Bitmap? {
-            try {
+            runCatching {
                 val view = viewRef.get()
                 val decoder = decoderRef.get()
                 val tile = tileRef.get()
@@ -1841,7 +1846,7 @@ class ScaleImageView(context: Context? = null, attr: AttributeSet? = null) : Vie
                         tile.sRect!!, tile.sampleSize
                     )
                     view.decoderLock.readLock().lock()
-                    try {
+                    runCatching {
                         if (decoder.isReady) {
                             // Update tile's file sRect according to rotation
                             view.fileSRect(tile.sRect, tile.fileSRect)
@@ -1852,18 +1857,17 @@ class ScaleImageView(context: Context? = null, attr: AttributeSet? = null) : Vie
                         } else {
                             tile.loading = false
                         }
-                    } finally {
+                    }.map {
                         view.decoderLock.readLock().unlock()
                     }
                 } else if (tile != null) {
                     tile.loading = false
+                } else {
+                    Log.e(TAG, "Failed to decode tile")
                 }
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to decode tile", e)
-                exception = e
-            } catch (e: OutOfMemoryError) {
-                Log.e(TAG, "Failed to decode tile - OutOfMemoryError", e)
-                exception = RuntimeException(e)
+            }.getOrElse {
+                Log.e(TAG, "Failed to decode tile", it.cause)
+                exception = java.lang.Exception(it)
             }
             return null
         }
@@ -1933,7 +1937,7 @@ class ScaleImageView(context: Context? = null, attr: AttributeSet? = null) : Vie
         }
 
         override fun doInBackground(vararg params: Void?): Int? {
-            try {
+            runCatching {
                 val sourceUri = source.toString()
                 val context = contextRef.get()
                 val decoderFactory = decoderFactoryRef.get()
@@ -1943,12 +1947,9 @@ class ScaleImageView(context: Context? = null, attr: AttributeSet? = null) : Vie
                     bitmap = decoderFactory.make()!!.decode(context, source!!)
                     return view.getExifOrientation(context, sourceUri)
                 }
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to load bitmap", e)
-                exception = e
-            } catch (e: OutOfMemoryError) {
-                Log.e(TAG, "Failed to load bitmap - OutOfMemoryError", e)
-                exception = RuntimeException(e)
+            }.getOrElse {
+                Log.e(TAG, "Failed to load bitmap", it.cause)
+                exception = java.lang.Exception(it)
             }
             return null
         }
@@ -2042,13 +2043,13 @@ class ScaleImageView(context: Context? = null, attr: AttributeSet? = null) : Vie
         var exifOrientation = ORIENTATION_0
         if (sourceUri.startsWith(ContentResolver.SCHEME_CONTENT)) {
             var cursor: Cursor? = null
-            try {
+            runCatching {
                 val columns = arrayOf(MediaStore.Images.Media.ORIENTATION)
                 cursor =
                     context.contentResolver.query(Uri.parse(sourceUri), columns, null, null, null)
                 if (cursor != null) {
-                    if (cursor.moveToFirst()) {
-                        val orientation = cursor.getInt(0)
+                    if (cursor!!.moveToFirst()) {
+                        val orientation = cursor!!.getInt(0)
                         if (VALID_ORIENTATIONS.contains(orientation) && orientation != ORIENTATION_USE_EXIF) {
                             exifOrientation = orientation
                         } else {
@@ -2059,16 +2060,16 @@ class ScaleImageView(context: Context? = null, attr: AttributeSet? = null) : Vie
                         }
                     }
                 }
-            } catch (e: Exception) {
-                Log.w(TAG, "Could not get orientation of image from media store")
-            } finally {
+            }.map {
                 cursor?.close()
+            }.getOrElse {
+                Log.w(TAG, "Could not get orientation of image from media store")
             }
         } else if (sourceUri.startsWith(ImageSource.FILE_SCHEME) && !sourceUri.startsWith(
                 ImageSource.ASSET_SCHEME
             )
         ) {
-            try {
+            runCatching {
                 val exifInterface =
                     ExifInterface(sourceUri.substring(ImageSource.FILE_SCHEME.length - 1))
                 val orientationAttr: Int = exifInterface.getAttributeInt(
@@ -2086,7 +2087,7 @@ class ScaleImageView(context: Context? = null, attr: AttributeSet? = null) : Vie
                         )
                     }
                 }
-            } catch (e: Exception) {
+            }.getOrElse {
                 Log.w(TAG, "Could not get EXIF orientation of image")
             }
         }
@@ -2111,6 +2112,7 @@ class ScaleImageView(context: Context? = null, attr: AttributeSet? = null) : Vie
         var bitmap: Bitmap? = null
         var loading = false
         var visible = false
+
         // Volatile fields instantiated once then updated before use to reduce GC.
         var vRect: Rect? = null
         var fileSRect: Rect? = null
@@ -2232,15 +2234,11 @@ class ScaleImageView(context: Context? = null, attr: AttributeSet? = null) : Vie
      */
     @AnyThread
     private fun fileSRect(sRect: Rect?, target: Rect?) {
-        if (requiredRotation == 0) {
-            target!!.set(sRect!!)
-        } else if (requiredRotation == 90) {
-            target!![sRect!!.top, sHeight - sRect.right, sRect.bottom] = sHeight - sRect.left
-        } else if (requiredRotation == 180) {
-            target!![sWidth - sRect!!.right, sHeight - sRect.bottom, sWidth - sRect.left] =
-                sHeight - sRect.top
-        } else {
-            target!![sWidth - sRect!!.bottom, sRect.left, sWidth - sRect.top] = sRect.right
+        when (requiredRotation) {
+            0 -> target!!.set(sRect!!)
+            90 -> target!![sRect!!.top, sHeight - sRect.right, sRect.bottom] = sHeight - sRect.left
+            180 -> target!![sWidth - sRect!!.right, sHeight - sRect.bottom, sWidth - sRect.left] = sHeight - sRect.top
+            else -> target!![sWidth - sRect!!.bottom, sRect.left, sWidth - sRect.top] = sRect.right
         }
     }
 
@@ -2249,7 +2247,7 @@ class ScaleImageView(context: Context? = null, attr: AttributeSet? = null) : Vie
      */
     @get:AnyThread
     private val requiredRotation: Int
-        private get() = if (orientation == ORIENTATION_USE_EXIF) {
+        get() = if (orientation == ORIENTATION_USE_EXIF) {
             sOrientation
         } else {
             orientation
@@ -3182,10 +3180,10 @@ class ScaleImageView(context: Context? = null, attr: AttributeSet? = null) : Vie
          */
         fun start() {
             if (anim != null && anim!!.listener != null) {
-                try {
+                runCatching {
                     anim!!.listener!!.onInterruptedByNewAnim()
-                } catch (e: Exception) {
-                    Log.w(TAG, "Error thrown by animation listener", e)
+                }.getOrElse {
+                    Log.w(TAG, "Error thrown by animation listener", it.cause)
                 }
             }
             val vxCenter = paddingLeft + (width - paddingRight - paddingLeft) / 2

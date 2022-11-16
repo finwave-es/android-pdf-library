@@ -1,5 +1,5 @@
 
-# Android Pdf Library 📚 [![](https://jitpack.io/v/talento-mobile/android-pdf-library.svg)](https://jitpack.io/#talento-mobile/android-pdf-library)
+# Android Pdf Library 📚 [![](https://jitpack.io/v/talento-mobile/android-pdf-library.svg)](https://jitpack.io/#talento-mobile/android-pdf-library) ![Workflow result](https://github.com/talento-mobile/android-pdf-library/workflows/Check/badge.svg)
 ## Step 1.
 Add the JitPack repository to your build file
 ``` Grooby

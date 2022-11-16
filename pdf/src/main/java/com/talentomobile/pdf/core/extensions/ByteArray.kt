@@ -6,14 +6,13 @@ import java.io.File
 import java.io.FileOutputStream
 
 fun ByteArray.savePDF(context: Context): File? {
-    val outFile: File
-    return try {
-        outFile = File(context.cacheDir, Constants.pdf)
+
+    return runCatching {
+        val outFile = File(context.cacheDir, Constants.pdf)
         val output = FileOutputStream(outFile)
         output.write(this)
         output.close()
         outFile
-    } catch (e: Exception) {
-        null
     }
+        .getOrNull()
 }
