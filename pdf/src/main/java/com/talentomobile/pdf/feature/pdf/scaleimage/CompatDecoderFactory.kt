@@ -13,15 +13,15 @@ class CompatDecoderFactory<T>
  * Construct a factory for the given class. This must have a default constructor.
  *
  * @param clazz a class that implements [ImageDecoder] or [ImageRegionDecoder].
- */ @JvmOverloads constructor(
+ */
+@JvmOverloads constructor(
     private val clazz: Class<out T>,
     private val bitmapConfig: Bitmap.Config? = null
-) :
-    DecoderFactory<T> {
+) : DecoderFactory<T> {
     /**
      * Construct a factory for the given class. This must have a constructor that accepts a [Bitmap.Config] instance.
      *
-     * @param clazz        a class that implements [ImageDecoder] or [ImageRegionDecoder].
+     * @param clazz a class that implements [ImageDecoder] or [ImageRegionDecoder].
      * @param bitmapConfig bitmap configuration to be used when loading images.
      */
     @Throws(

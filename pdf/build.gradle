@@ -4,6 +4,8 @@ plugins {
     id 'maven-publish'
 }
 
+apply  from: "$project.rootDir/spotless.gradle"
+
 android {
     namespace 'com.talentomobile.pdf'
     compileSdk 32

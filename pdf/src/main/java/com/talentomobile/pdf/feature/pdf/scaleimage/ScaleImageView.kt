@@ -28,7 +28,9 @@ import android.view.View
 import androidx.annotation.AnyThread
 import com.talentomobile.pdf.R
 import java.lang.ref.WeakReference
-import java.util.*
+import java.util.Arrays
+import java.util.Locale
+import java.util.Objects
 import java.util.concurrent.Executor
 import java.util.concurrent.locks.ReadWriteLock
 import java.util.concurrent.locks.ReentrantReadWriteLock
@@ -36,7 +38,6 @@ import kotlin.collections.ArrayList
 import kotlin.collections.LinkedHashMap
 import kotlin.math.abs
 import kotlin.math.roundToInt
-
 
 /**
  *
@@ -280,7 +281,7 @@ class ScaleImageView(context: Context? = null, attr: AttributeSet? = null) : Vie
     private val srcArray = FloatArray(8)
     private val dstArray = FloatArray(8)
 
-    //The logical density of the display
+    // The logical density of the display
     private val density: Float
 
     init {
@@ -445,7 +446,8 @@ class ScaleImageView(context: Context? = null, attr: AttributeSet? = null) : Vie
                     imageSource.sRegion!!.top,
                     imageSource.sRegion!!.width(),
                     imageSource.sRegion!!.height()
-                ), ORIENTATION_0, false
+                ),
+                ORIENTATION_0, false
             )
         } else if (imageSource.bitmap != null) {
             onImageLoaded(imageSource.bitmap, ORIENTATION_0, imageSource.isCached)
@@ -546,72 +548,80 @@ class ScaleImageView(context: Context? = null, attr: AttributeSet? = null) : Vie
     }
 
     private fun setGestureDetector(context: Context) {
-        detector = GestureDetector(context, object : SimpleOnGestureListener() {
-            override fun onFling(
-                e1: MotionEvent,
-                e2: MotionEvent,
-                velocityX: Float,
-                velocityY: Float
-            ): Boolean {
-                if (panEnabled && isReady && vTranslate != null && (abs(e1.x - e2.x) > 50 || abs(e1.y - e2.y) > 50) && (abs(
-                        velocityX
-                    ) > 500 || abs(velocityY) > 500) && !isZooming
-                ) {
-                    val vTranslateEnd = PointF(
-                        vTranslate!!.x + velocityX * 0.25f,
-                        vTranslate!!.y + velocityY * 0.25f
-                    )
-                    val sCenterXEnd = (width / 2 - vTranslateEnd.x) / scale
-                    val sCenterYEnd = (height / 2 - vTranslateEnd.y) / scale
-                    AnimationBuilder(PointF(sCenterXEnd, sCenterYEnd)).withEasing(EASE_OUT_QUAD)
-                        .withPanLimited(false).withOrigin(
-                            ORIGIN_FLING
-                        ).start()
+        detector = GestureDetector(
+            context,
+            object : SimpleOnGestureListener() {
+                override fun onFling(
+                    e1: MotionEvent,
+                    e2: MotionEvent,
+                    velocityX: Float,
+                    velocityY: Float
+                ): Boolean {
+                    if (panEnabled && isReady && vTranslate != null && (abs(e1.x - e2.x) > 50 || abs(e1.y - e2.y) > 50) && (
+                        abs(
+                                velocityX
+                            ) > 500 || abs(velocityY) > 500
+                        ) && !isZooming
+                    ) {
+                        val vTranslateEnd = PointF(
+                            vTranslate!!.x + velocityX * 0.25f,
+                            vTranslate!!.y + velocityY * 0.25f
+                        )
+                        val sCenterXEnd = (width / 2 - vTranslateEnd.x) / scale
+                        val sCenterYEnd = (height / 2 - vTranslateEnd.y) / scale
+                        AnimationBuilder(PointF(sCenterXEnd, sCenterYEnd)).withEasing(EASE_OUT_QUAD)
+                            .withPanLimited(false).withOrigin(
+                                ORIGIN_FLING
+                            ).start()
+                        return true
+                    }
+                    return super.onFling(e1, e2, velocityX, velocityY)
+                }
+
+                override fun onSingleTapConfirmed(e: MotionEvent): Boolean {
+                    performClick()
                     return true
                 }
-                return super.onFling(e1, e2, velocityX, velocityY)
-            }
 
-            override fun onSingleTapConfirmed(e: MotionEvent): Boolean {
-                performClick()
-                return true
-            }
-
-            override fun onDoubleTap(e: MotionEvent): Boolean {
-                if (isZoomEnabled && isReady && vTranslate != null) {
-                    // Hacky solution for #15 - after a double tap the GestureDetector gets in a state
-                    // where the next fling is ignored, so here we replace it with a new one.
-                    setGestureDetector(context)
-                    return if (isQuickScaleEnabled) {
-                        // Store quick scale params. This will become either a double tap zoom or a
-                        // quick scale depending on whether the user swipes.
-                        vCenterStart = PointF(e.x, e.y)
-                        vTranslateStart = PointF(vTranslate!!.x, vTranslate!!.y)
-                        scaleStart = scale
-                        isQuickScaling = true
-                        isZooming = true
-                        quickScaleLastDistance = -1f
-                        quickScaleSCenter = viewToSourceCoord(vCenterStart!!)
-                        quickScaleVStart = PointF(e.x, e.y)
-                        quickScaleVLastPoint = PointF(quickScaleSCenter!!.x, quickScaleSCenter!!.y)
-                        quickScaleMoved = false
-                        // We need to get events in onTouchEvent after this.
-                        false
-                    } else {
-                        // Start double tap zoom animation.
-                        doubleTapZoom(viewToSourceCoord(PointF(e.x, e.y)), PointF(e.x, e.y))
-                        true
+                override fun onDoubleTap(e: MotionEvent): Boolean {
+                    if (isZoomEnabled && isReady && vTranslate != null) {
+                        // Hacky solution for #15 - after a double tap the GestureDetector gets in a state
+                        // where the next fling is ignored, so here we replace it with a new one.
+                        setGestureDetector(context)
+                        return if (isQuickScaleEnabled) {
+                            // Store quick scale params. This will become either a double tap zoom or a
+                            // quick scale depending on whether the user swipes.
+                            vCenterStart = PointF(e.x, e.y)
+                            vTranslateStart = PointF(vTranslate!!.x, vTranslate!!.y)
+                            scaleStart = scale
+                            isQuickScaling = true
+                            isZooming = true
+                            quickScaleLastDistance = -1f
+                            quickScaleSCenter = viewToSourceCoord(vCenterStart!!)
+                            quickScaleVStart = PointF(e.x, e.y)
+                            quickScaleVLastPoint = PointF(quickScaleSCenter!!.x, quickScaleSCenter!!.y)
+                            quickScaleMoved = false
+                            // We need to get events in onTouchEvent after this.
+                            false
+                        } else {
+                            // Start double tap zoom animation.
+                            doubleTapZoom(viewToSourceCoord(PointF(e.x, e.y)), PointF(e.x, e.y))
+                            true
+                        }
                     }
+                    return super.onDoubleTapEvent(e)
                 }
-                return super.onDoubleTapEvent(e)
             }
-        })
-        singleDetector = GestureDetector(context, object : SimpleOnGestureListener() {
-            override fun onSingleTapConfirmed(e: MotionEvent): Boolean {
-                performClick()
-                return true
+        )
+        singleDetector = GestureDetector(
+            context,
+            object : SimpleOnGestureListener() {
+                override fun onSingleTapConfirmed(e: MotionEvent): Boolean {
+                    performClick()
+                    return true
+                }
             }
-        })
+        )
     }
 
     /**
@@ -748,12 +758,14 @@ class ScaleImageView(context: Context? = null, attr: AttributeSet? = null) : Vie
                             distance(event.getX(0), event.getX(1), event.getY(0), event.getY(1))
                         val vCenterEndX = (event.getX(0) + event.getX(1)) / 2
                         val vCenterEndY = (event.getY(0) + event.getY(1)) / 2
-                        if (isZoomEnabled && (distance(
-                                vCenterStart!!.x,
-                                vCenterEndX,
-                                vCenterStart!!.y,
-                                vCenterEndY
-                            ) > 5 || Math.abs(vDistEnd - vDistStart) > 5 || isPanning)
+                        if (isZoomEnabled && (
+                            distance(
+                                    vCenterStart!!.x,
+                                    vCenterEndX,
+                                    vCenterStart!!.y,
+                                    vCenterEndY
+                                ) > 5 || Math.abs(vDistEnd - vDistStart) > 5 || isPanning
+                            )
                         ) {
                             isZooming = true
                             isPanning = true
@@ -850,7 +862,7 @@ class ScaleImageView(context: Context? = null, attr: AttributeSet? = null) : Vie
                         val dx = abs(event.x - vCenterStart!!.x)
                         val dy = abs(event.y - vCenterStart!!.y)
 
-                        //On the Samsung S6 long click event does not work, because the dx > 5 usually true
+                        // On the Samsung S6 long click event does not work, because the dx > 5 usually true
                         val offset = density * 5
                         if (dx > offset || dy > offset || isPanning) {
                             consumed = true
@@ -1069,7 +1081,6 @@ class ScaleImageView(context: Context? = null, attr: AttributeSet? = null) : Vie
                 }
             }
 
-
             // Render all loaded tiles. LinkedHashMap used for bottom up rendering - lower res tiles underneath.
             tileMap!!.forEach {
                 if (it.key == sampleSize || hasMissingTiles) {
@@ -1228,7 +1239,8 @@ class ScaleImageView(context: Context? = null, attr: AttributeSet? = null) : Vie
                     vTranslate!!.x
                 ) + ":" + String.format(
                     Locale.ENGLISH, "%.2f", vTranslate!!.y
-                ), px(5).toFloat(), px(30).toFloat(),
+                ),
+                px(5).toFloat(), px(30).toFloat(),
                 debugTextPaint!!
             )
             val center = center
@@ -1239,7 +1251,8 @@ class ScaleImageView(context: Context? = null, attr: AttributeSet? = null) : Vie
                     center!!.x
                 ) + ":" + String.format(
                     Locale.ENGLISH, "%.2f", center.y
-                ), px(5).toFloat(), px(45).toFloat(),
+                ),
+                px(5).toFloat(), px(45).toFloat(),
                 debugTextPaint!!
             )
             if (anim != null) {
@@ -1276,9 +1289,11 @@ class ScaleImageView(context: Context? = null, attr: AttributeSet? = null) : Vie
             if (quickScaleSCenter != null) {
                 debugLinePaint!!.color = Color.BLUE
                 canvas.drawCircle(
-                    sourceToViewX(quickScaleSCenter!!.x), sourceToViewY(
+                    sourceToViewX(quickScaleSCenter!!.x),
+                    sourceToViewY(
                         quickScaleSCenter!!.y
-                    ), px(35).toFloat(), debugLinePaint!!
+                    ),
+                    px(35).toFloat(), debugLinePaint!!
                 )
             }
             if (quickScaleVStart != null && isQuickScaling) {
@@ -1491,7 +1506,7 @@ class ScaleImageView(context: Context? = null, attr: AttributeSet? = null) : Vie
         val sVisRight = viewToSourceX(width.toFloat())
         val sVisTop = viewToSourceY(0f)
         val sVisBottom = viewToSourceY(height.toFloat())
-        //return !(sVisLeft > tile.sRect!!.right || tile.sRect.left > sVisRight || sVisTop > tile.sRect.bottom || tile.sRect.top > sVisBottom)
+        // return !(sVisLeft > tile.sRect!!.right || tile.sRect.left > sVisRight || sVisTop > tile.sRect.bottom || tile.sRect.top > sVisBottom)
         return !(sVisLeft > tile.sRect!!.right || tile.sRect?.left ?: 0 > sVisRight || sVisTop > tile.sRect?.bottom ?: 0 || tile.sRect?.top ?: 0 > sVisBottom)
     }
 
@@ -2096,34 +2111,50 @@ class ScaleImageView(context: Context? = null, attr: AttributeSet? = null) : Vie
         var bitmap: Bitmap? = null
         var loading = false
         var visible = false
-
         // Volatile fields instantiated once then updated before use to reduce GC.
         var vRect: Rect? = null
         var fileSRect: Rect? = null
     }
 
     private class Anim {
-        var scaleStart // Scale at start of anim
-                = 0f
-        var scaleEnd // Scale at end of anim (target)
-                = 0f
-        var sCenterStart // Source center point at start
-                : PointF? = null
-        var sCenterEnd // Source center point at end, adjusted for pan limits
-                : PointF? = null
-        var sCenterEndRequested // Source center point that was requested, without adjustment
-                : PointF? = null
-        var vFocusStart // View point that was double tapped
-                : PointF? = null
-        var vFocusEnd // Where the view focal point should be moved to during the anim
-                : PointF? = null
-        var duration: Long = 500 // How long the anim takes
-        var interruptible = true // Whether the anim can be interrupted by a touch
-        var easing = EASE_IN_OUT_QUAD // Easing style
-        var origin = ORIGIN_ANIM // Animation origin (API, double tap or fling)
-        var time = System.currentTimeMillis() // Start time
-        var listener // Event listener
-                : OnAnimationEventListener? = null
+        // Scale at start of anim
+        var scaleStart = 0f
+
+        // Scale at end of anim (target)
+        var scaleEnd = 0f
+
+        // Source center point at start
+        var sCenterStart: PointF? = null
+
+        // Source center point at end, adjusted for pan limits
+        var sCenterEnd: PointF? = null
+
+        // Source center point that was requested, without adjustment
+        var sCenterEndRequested: PointF? = null
+
+        // View point that was double tapped
+        var vFocusStart: PointF? = null
+
+        // Where the view focal point should be moved to during the anim
+        var vFocusEnd: PointF? = null
+
+        // How long the anim takes
+        var duration: Long = 500
+
+        // Whether the anim can be interrupted by a touch
+        var interruptible = true
+
+        // Easing style
+        var easing = EASE_IN_OUT_QUAD
+
+        // Animation origin (API, double tap or fling)
+        var origin = ORIGIN_ANIM
+
+        // Start time
+        var time = System.currentTimeMillis()
+
+        // Event listener
+        var listener: OnAnimationEventListener? = null
     }
 
     private class ScaleAndTranslate(var scale: Float, var vTranslate: PointF)
@@ -2283,9 +2314,11 @@ class ScaleImageView(context: Context? = null, attr: AttributeSet? = null) : Vie
         if (vTranslate == null || !isReady) {
             return
         }
-        fRect[viewToSourceX(vRect.left.toFloat()).toInt(), viewToSourceY(vRect.top.toFloat()).toInt(), viewToSourceX(
-            vRect.right.toFloat()
-        ).toInt()] =
+        fRect[
+            viewToSourceX(vRect.left.toFloat()).toInt(), viewToSourceY(vRect.top.toFloat()).toInt(), viewToSourceX(
+                vRect.right.toFloat()
+            ).toInt()
+        ] =
             viewToSourceY(vRect.bottom.toFloat()).toInt()
         fileSRect(fRect, fRect)
         fRect[Math.max(0, fRect.left), Math.max(0, fRect.top), Math.min(sWidth, fRect.right)] =
@@ -2420,9 +2453,11 @@ class ScaleImageView(context: Context? = null, attr: AttributeSet? = null) : Vie
      * Convert source rect to screen rect, integer values.
      */
     private fun sourceToViewRect(sRect: Rect, vTarget: Rect) {
-        vTarget[sourceToViewX(sRect.left.toFloat()).toInt(), sourceToViewY(sRect.top.toFloat()).toInt(), sourceToViewX(
-            sRect.right.toFloat()
-        ).toInt()] =
+        vTarget[
+            sourceToViewX(sRect.left.toFloat()).toInt(), sourceToViewY(sRect.top.toFloat()).toInt(), sourceToViewX(
+                sRect.right.toFloat()
+            ).toInt()
+        ] =
             sourceToViewY(sRect.bottom.toFloat()).toInt()
     }
 

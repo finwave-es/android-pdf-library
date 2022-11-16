@@ -79,7 +79,8 @@ class ScaleRegionDecoder(bitmapConfig: Bitmap.Config?) : ImageRegionDecoder {
                 context.assets.open(
                     assetName,
                     AssetManager.ACCESS_RANDOM
-                ), false
+                ),
+                false
             )
         } else if (uriString.startsWith(FILE_PREFIX)) {
             decoder =
